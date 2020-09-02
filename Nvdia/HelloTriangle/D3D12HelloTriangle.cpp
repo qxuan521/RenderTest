@@ -25,7 +25,11 @@ void D3D12HelloTriangle::OnInit()
 {
 	LoadPipeline();
 	LoadAssets();
+	// Check the raytracing capabilities of the device
 	CheckRaytracingSupport();
+	// Command lists are created in the recording state, but there is nothing
+	// to record yet. The main loop expects it to be closed, so close it now.
+	ThrowIfFailed(m_commandList->Close());
 }
 
 // Load the rendering pipeline dependencies.
@@ -48,30 +52,74 @@ void D3D12HelloTriangle::LoadPipeline()
 	}
 #endif
 
-	ComPtr<IDXGIFactory4> factory;
+	ComPtr<IDXGIFactory2> factory;
+	ComPtr<IDXGIFactory> rfactoryTest;
+	CreateDXGIFactory2(dxgiFactoryFlags,IID_PPV_ARGS(&rfactoryTest));
+	{
+		ComPtr<IDXGIAdapter1> hardwareAdapter1;
+
+		ComPtr<IDXGIFactory6> factory6;
+		HRESULT hrQuery = rfactoryTest->QueryInterface<IDXGIFactory6>(&factory6);
+		if (nullptr != factory6)
+		{
+			factory6->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&hardwareAdapter1));
+		}
+	}
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+	//ThrowIfFailed(CreateDXGIFactory1(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
 		ComPtr<IDXGIAdapter> warpAdapter;
-		ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+		ComPtr<IDXGIAdapter1> hardwareAdapter1;
+		//獲取factor6
+		ComPtr<IDXGIFactory6> factory6;
+		factory->QueryInterface(__uuidof(IDXGIFactory6),(&factory6));
+		if (nullptr != factory6)
+		{
+			factory6->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&hardwareAdapter1));
+		}
+		//ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 
 		ThrowIfFailed(D3D12CreateDevice(
 			warpAdapter.Get(),
-			D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_12_1,
 			IID_PPV_ARGS(&m_device)
 			));
 	}
 	else
 	{
 		ComPtr<IDXGIAdapter1> hardwareAdapter;
+		ComPtr<IDXGIAdapter1> hardwareAdapter1;
+		ComPtr<IDXGIFactory6> factory6;
+		//factory->QueryInterface<IDXGIFactory6>(&factory6);
+		//factory->QueryInterface(IID_PPV_ARGS(&factory6));
+		HRESULT hrQuery = factory->QueryInterface<IDXGIFactory6>(&factory6);
+		if (nullptr != factory6)
+		{
+			factory6->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&hardwareAdapter1));
+		}
 		GetHardwareAdapter(factory.Get(), &hardwareAdapter);
-
 		ThrowIfFailed(D3D12CreateDevice(
 			hardwareAdapter.Get(),
-			D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_12_1,
 			IID_PPV_ARGS(&m_device)
 			));
+
+	
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 stFeatureSupportData = {};
+		HRESULT hr = m_device->CheckFeatureSupport(
+			D3D12_FEATURE_D3D12_OPTIONS1
+			, &stFeatureSupportData
+			, sizeof(stFeatureSupportData));
+
+		UUID UUIDExperimentalFeatures[] = { D3D12ExperimentalShaderModels };
+		// 打开扩展属性支持
+		HRESULT hr1 = D3D12EnableExperimentalFeatures(1
+			, UUIDExperimentalFeatures
+			, nullptr
+			, nullptr);
+
 	}
 
 	// Describe and create the command queue.
@@ -194,7 +242,7 @@ void D3D12HelloTriangle::LoadAssets()
 
 	// Command lists are created in the recording state, but there is nothing
 	// to record yet. The main loop expects it to be closed, so close it now.
-	ThrowIfFailed(m_commandList->Close());
+	//ThrowIfFailed(m_commandList->Close());
 
 	// Create the vertex buffer.
 	{
@@ -282,7 +330,7 @@ void D3D12HelloTriangle::OnDestroy()
 	CloseHandle(m_fenceEvent);
 }
 
-void D3D12HelloTriangle::OnKeyUp(UINT8)
+void D3D12HelloTriangle::OnKeyUp(UINT8 uKeyID)
 {
 
 }
@@ -318,14 +366,31 @@ void D3D12HelloTriangle::PopulateCommandList()
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-
+#if 0
+	
 	// Record commands.
 	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	m_commandList->DrawInstanced(3, 1, 0, 0);
-
+#endif
+	// Record commands.
+	// For Raytracing
+	// #DXR
+	if (m_bRaster)
+	{
+		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+		m_commandList->DrawInstanced(3, 1, 0, 0);
+	}
+	else
+	{
+		const float clearColor[] = { 0.6f, 0.8f, 0.4f, 1.0f };
+		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	}
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
