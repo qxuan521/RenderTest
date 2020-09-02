@@ -12,9 +12,16 @@
 #pragma once
 
 #include "DXSample.h"
-
+#include "../../DXR/nv_helpers_dx12/TopLevelASGenerator.h"
+#include "../../DXR/nv_helpers_dx12/BottomLevelASGenerator.h"
 using namespace DirectX;
-
+// #DXR
+struct AccelerationStructureBuffers
+{
+	ComPtr<ID3D12Resource> pScratch;      // Scratch memory for AS builder
+	ComPtr<ID3D12Resource> pResult;       // Where the AS is
+	ComPtr<ID3D12Resource> pInstanceDesc; // Hold the matrices of the instances
+};
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
 // for the GPU lifetime of resources to avoid destroying objects that may still be
@@ -33,6 +40,23 @@ public:
 	virtual void OnDestroy();
 	virtual void OnKeyUp(UINT8 /*key*/);
 	void CheckRaytracingSupport();
+
+
+	/// Create the acceleration structure of an instance
+	///
+	/// \param     vVertexBuffers : pair of buffer and vertex count
+	/// \return    AccelerationStructureBuffers for TLAS
+	AccelerationStructureBuffers
+		CreateBottomLevelAS(std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers);
+
+	/// Create the main acceleration structure that holds
+	/// all instances of the scene
+	/// \param     instances : pair of BLAS and transform
+	void CreateTopLevelAS(
+		const std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>>& instances);
+
+	/// Create all acceleration structures, bottom and top
+	void CreateAccelerationStructures();
 private:
 	static const UINT FrameCount = 2;
 
@@ -46,7 +70,7 @@ private:
 	CD3DX12_VIEWPORT m_viewport;
 	CD3DX12_RECT m_scissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
-	ComPtr<ID3D12Device> m_device;
+	ComPtr<ID3D12Device5> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
@@ -55,6 +79,11 @@ private:
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12GraphicsCommandList4> m_commandList;
 	UINT m_rtvDescriptorSize;
+	ComPtr<ID3D12Resource> m_bottomLevelAS; // Storage for the bottom Level AS
+
+	nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
+	AccelerationStructureBuffers m_topLevelASBuffers;
+	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_instances;
 
 	// App resources.
 	ComPtr<ID3D12Resource> m_vertexBuffer;

@@ -12,6 +12,7 @@
 #include "stdafx.h"
 #include "D3D12HelloTriangle.h"
 #include <stdexcept>
+#include "../../DXR/DXRHelper.h"
 D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
@@ -94,25 +95,28 @@ void D3D12HelloTriangle::LoadPipeline()
 		ComPtr<IDXGIFactory6> factory6;
 		//factory->QueryInterface<IDXGIFactory6>(&factory6);
 		//factory->QueryInterface(IID_PPV_ARGS(&factory6));
+		//验证能不能够获取到factory6
 		HRESULT hrQuery = factory->QueryInterface<IDXGIFactory6>(&factory6);
 		if (nullptr != factory6)
 		{
+			//获取主要设备
 			factory6->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&hardwareAdapter1));
 		}
 		GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+		//创建device5
 		ThrowIfFailed(D3D12CreateDevice(
 			hardwareAdapter.Get(),
 			D3D_FEATURE_LEVEL_12_1,
 			IID_PPV_ARGS(&m_device)
 			));
 
-	
+		//验证设备是不是支持options5  options5以上支持光追
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 stFeatureSupportData = {};
 		HRESULT hr = m_device->CheckFeatureSupport(
-			D3D12_FEATURE_D3D12_OPTIONS1
+			D3D12_FEATURE_D3D12_OPTIONS5
 			, &stFeatureSupportData
 			, sizeof(stFeatureSupportData));
-
+		//测试是不是支持 fallback模拟的方式
 		UUID UUIDExperimentalFeatures[] = { D3D12ExperimentalShaderModels };
 		// 打开扩展属性支持
 		HRESULT hr1 = D3D12EnableExperimentalFeatures(1
@@ -332,7 +336,10 @@ void D3D12HelloTriangle::OnDestroy()
 
 void D3D12HelloTriangle::OnKeyUp(UINT8 uKeyID)
 {
-
+	if (uKeyID == VK_SPACE)
+	{
+		m_bRaster = !m_bRaster;
+	}
 }
 
 void D3D12HelloTriangle::CheckRaytracingSupport()
@@ -342,6 +349,122 @@ void D3D12HelloTriangle::CheckRaytracingSupport()
 		&options5, sizeof(options5)));
 	if (options5.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
 		throw std::runtime_error("Raytracing not supported on device");
+}
+//std::pair<ComPtr<ID3D12Resource>, uint32_t>
+// 第一个参数是 顶点信息，第二个是顶点个数
+//这种方式没有使用indexbuffer
+/*
+整个流程在gpu上执行
+3个步骤
+1. 将所有顶点的组合放到 BottomLevelASGenerator 中
+2. 计算需要的临时缓冲区大小 创建缓冲区 （这些缓冲区会在构建之后被释放）
+3. 生成BLAS （Generate）
+*/
+AccelerationStructureBuffers D3D12HelloTriangle::CreateBottomLevelAS(std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers)
+{
+	
+	nv_helpers_dx12::BottomLevelASGenerator bottomLevelAS;
+
+	// Adding all vertex buffers and not transforming their position.
+	for (const auto& buffer : vVertexBuffers) {
+		bottomLevelAS.AddVertexBuffer(buffer.first.Get(), 0, buffer.second,
+			sizeof(Vertex), 0, 0);
+	}
+
+	// The AS build requires some scratch space to store temporary information.
+	// The amount of scratch memory is dependent on the scene complexity.
+	UINT64 scratchSizeInBytes = 0;
+	// The final AS also needs to be stored in addition to the existing vertex
+	// buffers. It size is also dependent on the scene complexity.
+	UINT64 resultSizeInBytes = 0;
+
+	bottomLevelAS.ComputeASBufferSizes(m_device.Get(), false, &scratchSizeInBytes,
+		&resultSizeInBytes);
+
+	// Once the sizes are obtained, the application is responsible for allocating
+	// the necessary buffers. Since the entire generation will be done on the GPU,
+	// we can directly allocate those on the default heap
+	AccelerationStructureBuffers buffers;
+	buffers.pScratch = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), scratchSizeInBytes,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON,
+		nv_helpers_dx12::kDefaultHeapProps);
+	buffers.pResult = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), resultSizeInBytes,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		nv_helpers_dx12::kDefaultHeapProps);
+
+	// Build the acceleration structure. Note that this call integrates a barrier
+	// on the generated AS, so that it can be used to compute a top-level AS right
+	// after this method.
+	bottomLevelAS.Generate(m_commandList.Get(), buffers.pScratch.Get(),
+		buffers.pResult.Get(), false, nullptr);
+
+	return buffers;
+}
+//-----------------------------------------------------------------------------
+// Create the main acceleration structure that holds all instances of the scene.
+// Similarly to the bottom-level AS generation, it is done in 3 steps: gathering
+// the instances, computing the memory requirements for the AS, and building the
+// AS itself
+//
+/*
+std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>
+第一个元素是 BLAS资源的指针 第二个是对象的位置矩阵，感觉上和 drawinstence有一点相似 一个描述一个instence 另一个 描述 instence的状态
+同样是3个步骤与blas相似  但在申请临时缓冲区时需要额外一块内存保存 instence的描述
+描述需要被存储在上传堆上
+*/
+void D3D12HelloTriangle::CreateTopLevelAS(const std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>>& instances)
+{
+	// Gather all the instances into the builder helper
+	for (size_t i = 0; i < instances.size(); i++) {
+		m_topLevelASGenerator.AddInstance(instances[i].first.Get(),
+			instances[i].second, static_cast<unsigned int>(i),
+			static_cast<unsigned int>(0));
+	}
+
+	// As for the bottom-level AS, the building the AS requires some scratch space
+	// to store temporary data in addition to the actual AS. In the case of the
+	// top-level AS, the instance descriptors also need to be stored in GPU
+	// memory. This call outputs the memory requirements for each (scratch,
+	// results, instance descriptors) so that the application can allocate the
+	// corresponding memory
+	UINT64 scratchSize, resultSize, instanceDescsSize;
+
+	m_topLevelASGenerator.ComputeASBufferSizes(m_device.Get(), true, &scratchSize,
+		&resultSize, &instanceDescsSize);
+
+	// Create the scratch and result buffers. Since the build is all done on GPU,
+	// those can be allocated on the default heap
+	m_topLevelASBuffers.pScratch = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), scratchSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		nv_helpers_dx12::kDefaultHeapProps);
+	m_topLevelASBuffers.pResult = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), resultSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		nv_helpers_dx12::kDefaultHeapProps);
+
+	// The buffer describing the instances: ID, shader binding information,
+	// matrices ... Those will be copied into the buffer by the helper through
+	// mapping, so the buffer has to be allocated on the upload heap.
+	m_topLevelASBuffers.pInstanceDesc = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), instanceDescsSize, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+
+	// After all the buffers are allocated, or if only an update is required, we
+	// can build the acceleration structure. Note that in the case of the update
+	// we also pass the existing AS as the 'previous' AS, so that it can be
+	// refitted in place.
+	m_topLevelASGenerator.Generate(m_commandList.Get(),
+		m_topLevelASBuffers.pScratch.Get(),
+		m_topLevelASBuffers.pResult.Get(),
+		m_topLevelASBuffers.pInstanceDesc.Get());
+}
+
+void D3D12HelloTriangle::CreateAccelerationStructures()
+{
 }
 
 void D3D12HelloTriangle::PopulateCommandList()

@@ -58,7 +58,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir);F:\Coding_Space\Code\RenderTest\DXR\nv_helpers_dx12;F:\Coding_Space\Code\RenderTest\Nvdia\HelloTriangle</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\..\DXR\nv_helpers_dx12;F:\Coding_Space\Code\RenderTest\Nvdia\HelloTriangle</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
