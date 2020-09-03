@@ -16,6 +16,8 @@
 #include "../../DXR/nv_helpers_dx12/BottomLevelASGenerator.h"
 using namespace DirectX;
 // #DXR
+using Microsoft::WRL::ComPtr;
+
 struct AccelerationStructureBuffers
 {
 	ComPtr<ID3D12Resource> pScratch;      // Scratch memory for AS builder
@@ -27,7 +29,6 @@ struct AccelerationStructureBuffers
 // for the GPU lifetime of resources to avoid destroying objects that may still be
 // referenced by the GPU.
 // An example of this can be found in the class method: OnDestroy().
-using Microsoft::WRL::ComPtr;
 
 class D3D12HelloTriangle : public DXSample
 {
