@@ -42,8 +42,8 @@ void D3D12HelloTriangle::OnInit()
 	ThrowIfFailed(m_commandList->Close());
 
 	// Create the raytracing pipeline, associating the shader code to symbol names
-// and to their root signatures, and defining the amount of memory carried by
-// rays (ray payload)
+	// and to their root signatures, and defining the amount of memory carried by
+	// rays (ray payload)
 	CreateRaytracingPipeline(); // #DXR
 }
 
