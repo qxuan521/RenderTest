@@ -58,6 +58,29 @@ public:
 
 	/// Create all acceleration structures, bottom and top
 	void CreateAccelerationStructures();
+
+
+	// #DXR
+	ComPtr<ID3D12RootSignature> CreateRayGenSignature();
+	ComPtr<ID3D12RootSignature> CreateMissSignature();
+	ComPtr<ID3D12RootSignature> CreateHitSignature();
+
+	void CreateRaytracingPipeline();
+
+	ComPtr<IDXCBlob> m_rayGenLibrary;
+	ComPtr<IDXCBlob> m_hitLibrary;
+	ComPtr<IDXCBlob> m_missLibrary;
+
+	ComPtr<ID3D12RootSignature> m_rayGenSignature;
+	ComPtr<ID3D12RootSignature> m_hitSignature;
+	ComPtr<ID3D12RootSignature> m_missSignature;
+
+	// Ray tracing pipeline state
+	ComPtr<ID3D12StateObject> m_rtStateObject;
+	// Ray tracing pipeline state properties, retaining the shader identifiers
+	// to use in the Shader Binding Table
+	ComPtr<ID3D12StateObjectProperties> m_rtStateObjectProps;
+
 private:
 	static const UINT FrameCount = 2;
 
