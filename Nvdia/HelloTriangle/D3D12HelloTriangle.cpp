@@ -582,7 +582,7 @@ void D3D12HelloTriangle::WaitForPreviousFrame()
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
-ComPtr<id3d12rootsignature> D3D12HelloTriangle::CreateRayGenSignature()
+ComPtr<ID3D12RootSignature> D3D12HelloTriangle::CreateRayGenSignature()
 {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	rsc.AddHeapRangesParameter(
@@ -595,12 +595,12 @@ ComPtr<id3d12rootsignature> D3D12HelloTriangle::CreateRayGenSignature()
 
 	return rsc.Generate(m_device.Get(), true);
 }
-ComPtr<id3d12rootsignature> D3D12HelloTriangle::CreateMissSignature()
+ComPtr<ID3D12RootSignature> D3D12HelloTriangle::CreateMissSignature()
 {
 		nv_helpers_dx12::RootSignatureGenerator rsc;
 		return rsc.Generate(m_device.Get(), true);
 }
-ComPtr<id3d12rootsignature> D3D12HelloTriangle::CreateHitSignature()
+ComPtr<ID3D12RootSignature> D3D12HelloTriangle::CreateHitSignature()
 {
 		nv_helpers_dx12::RootSignatureGenerator rsc;
 		return rsc.Generate(m_device.Get(), true);
@@ -689,6 +689,5 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 
 	// Cast the state object into a properties object, allowing to later access
 	// the shader pointers by name
-	ThrowIfFailed(
-		m_rtStateObject->QueryInterface(IID_PPV_ARGS(&m_rtStateObjectProps)));
+	ThrowIfFailed(m_rtStateObject->QueryInterface(IID_PPV_ARGS(&m_rtStateObjectProps)));
 }
