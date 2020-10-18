@@ -14,6 +14,8 @@
 #include "DXSample.h"
 #include "../../DXR/nv_helpers_dx12/TopLevelASGenerator.h"
 #include "../../DXR/nv_helpers_dx12/BottomLevelASGenerator.h"
+#include "../../DXR/nv_helpers_dx12/ShaderBindingTableGenerator.h"
+#include <dxcapi.h>
 using namespace DirectX;
 // #DXR
 using Microsoft::WRL::ComPtr;
@@ -67,9 +69,9 @@ public:
 
 	void CreateRaytracingPipeline();
 
-	ComPtr<IDXCBlob> m_rayGenLibrary;
-	ComPtr<IDXCBlob> m_hitLibrary;
-	ComPtr<IDXCBlob> m_missLibrary;
+	ComPtr<IDxcBlob> m_rayGenLibrary;
+	ComPtr<IDxcBlob> m_hitLibrary;
+	ComPtr<IDxcBlob> m_missLibrary;
 
 	ComPtr<ID3D12RootSignature> m_rayGenSignature;
 	ComPtr<ID3D12RootSignature> m_hitSignature;
@@ -126,5 +128,21 @@ private:
 	void PopulateCommandList();
 	void WaitForPreviousFrame();
 
-	
+	// #DXR
+	void CreateRaytracingOutputBuffer();
+	void CreateShaderResourceHeap();
+	ComPtr<ID3D12Resource> m_outputResource;
+	ComPtr<ID3D12DescriptorHeap> m_srvUavHeap;
+
+
+	// #DXR
+	void CreateShaderBindingTable();
+	nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
+	ComPtr<ID3D12Resource> m_sbtStorage;
+
+
+	// #DXR Extra: Per-Instance Data
+	ComPtr<ID3D12Resource> m_planeBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_planeBufferView;
+	void CreatePlaneVB();
 };
