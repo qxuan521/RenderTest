@@ -16,6 +16,15 @@
     <Filter Include="FrameWork">
       <UniqueIdentifier>{ab476519-9507-4c97-9f37-9d9d7eb42e87}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ResourceImport">
+      <UniqueIdentifier>{3e195b20-a20c-400c-a14f-a03bf0cb749e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{95128637-4ab5-4605-88d7-60a5c25844ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Support">
+      <UniqueIdentifier>{da9ca5c4-cd44-4fd0-9897-377e9fd4b612}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\DXR\DXRHelper.h">
@@ -39,9 +48,6 @@
     <ClInclude Include="Camera.h">
       <Filter>FrameWork</Filter>
     </ClInclude>
-    <ClInclude Include="MathHelper.h">
-      <Filter>FrameWork</Filter>
-    </ClInclude>
     <ClInclude Include="D3D12HelloTriangle.h">
       <Filter>RayTracing</Filter>
     </ClInclude>
@@ -58,6 +64,24 @@
       <Filter>FrameWork</Filter>
     </ClInclude>
     <ClInclude Include="stdafx.h">
+      <Filter>FrameWork</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshImporter.h">
+      <Filter>ResourceImport</Filter>
+    </ClInclude>
+    <ClInclude Include="tiny_obj_loader.h">
+      <Filter>ResourceImport</Filter>
+    </ClInclude>
+    <ClInclude Include="IRawResource.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="RawStaticMesh.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="MyMath.h">
+      <Filter>Support</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D12Context.h">
       <Filter>FrameWork</Filter>
     </ClInclude>
   </ItemGroup>
@@ -93,6 +117,18 @@
       <Filter>FrameWork</Filter>
     </ClCompile>
     <ClCompile Include="Win32Application.cpp">
+      <Filter>FrameWork</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshImporter.cpp">
+      <Filter>ResourceImport</Filter>
+    </ClCompile>
+    <ClCompile Include="RawStaticMesh.cpp">
+      <Filter>Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="MyMath.cpp">
+      <Filter>Support</Filter>
+    </ClCompile>
+    <ClCompile Include="D3D12Context.cpp">
       <Filter>FrameWork</Filter>
     </ClCompile>
   </ItemGroup>

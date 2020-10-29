@@ -16,6 +16,7 @@
 #include "../../DXR/nv_helpers_dx12/BottomLevelASGenerator.h"
 #include "../../DXR/nv_helpers_dx12/ShaderBindingTableGenerator.h"
 #include <dxcapi.h>
+#include "Camera.h"
 using namespace DirectX;
 // #DXR
 using Microsoft::WRL::ComPtr;
@@ -42,6 +43,8 @@ public:
 	virtual void OnRender();
 	virtual void OnDestroy();
 	virtual void OnKeyUp(UINT8 /*key*/);
+	virtual void OnMouseDown(UINT32 lParam);
+	virtual void OnMouseMove(UINT8 wParam, UINT32 lParam);
 	void CheckRaytracingSupport();
 
 
@@ -101,7 +104,6 @@ private:
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
 	ComPtr<ID3D12RootSignature> m_rootSignature;
-	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12GraphicsCommandList4> m_commandList;
 	UINT m_rtvDescriptorSize;
@@ -113,6 +115,7 @@ private:
 
 	// App resources.
 	ComPtr<ID3D12Resource> m_vertexBuffer;
+	ComPtr<ID3D12Resource> m_indexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 
 	// Synchronization objects.
@@ -127,7 +130,13 @@ private:
 	void LoadAssets();
 	void PopulateCommandList();
 	void WaitForPreviousFrame();
-
+	void CreateInstanceBuffer();
+	struct InstanceProperty
+	{
+		XMMATRIX rTransformMat;
+	};
+	ComPtr<ID3D12Resource> m_rInstancePropertysResource;
+	std::vector<InstanceProperty> m_rInstrancePropertyData;
 	// #DXR
 	void CreateRaytracingOutputBuffer();
 	void CreateShaderResourceHeap();
@@ -145,4 +154,27 @@ private:
 	ComPtr<ID3D12Resource> m_planeBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_planeBufferView;
 	void CreatePlaneVB();
+
+	//about camera
+	Camera* m_pCamera;
+	float  m_mouse[2];
+	ComPtr<ID3D12Resource> m_rCameraResource;
+
+	void CreateCameraBuffer();
+	void UpdateCameraBuffer();
+
+
+	//desc heap
+	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_constHeap;
+
+	std::vector<D3D12_CONSTANT_BUFFER_VIEW_DESC> m_rConstantBufferViewDesc;
+	std::vector<D3D12_SHADER_RESOURCE_VIEW_DESC> m_rShaderResourceViewDesc;
+	std::vector<D3D12_UNORDERED_ACCESS_VIEW_DESC> m_rUnorderAccessViewDesc;
+
+	void CreateConstDescHeap();
+
+	//const
+	void ConstValueInit();
+	int m_nSrvDescIncrementSize;
 };

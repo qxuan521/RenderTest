@@ -16,12 +16,28 @@
 
 #include "../../DXR/nv_helpers_dx12/RaytracingPipelineGenerator.h"   
 #include "../../DXR/nv_helpers_dx12/RootSignatureGenerator.h"
+#define  DEBUG_RASTER
+
+
+// Specifies a heap used for uploading. This heap type has CPU access optimized
+// for uploading to the GPU.
+static const D3D12_HEAP_PROPERTIES kUploadHeapProps = {
+	D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 };
+
+// Specifies the default heap. This heap type experiences the most bandwidth for
+// the GPU, but cannot provide CPU access.
+static const D3D12_HEAP_PROPERTIES kDefaultHeapProps = {
+	D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 };
+
+
+
 D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
 	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
 	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-	m_rtvDescriptorSize(0)
+	m_rtvDescriptorSize(0),
+	m_pCamera(new Camera(static_cast<float>(width), static_cast<float>(height)))
 {
 }
 
@@ -29,12 +45,16 @@ void D3D12HelloTriangle::OnInit()
 {
 	LoadPipeline();
 	LoadAssets();
+	ConstValueInit();
+	
+	CreateCameraBuffer();
+	CreateConstDescHeap();
 	// Check the raytracing capabilities of the device
 	CheckRaytracingSupport();
 
 	// Setup the acceleration structures (AS) for raytracing. When setting up
 	// geometry, each bottom-level AS has its own transform matrix.
-	CreateAccelerationStructures();
+	//CreateAccelerationStructures();
 
 	// Command lists are created in the recording state, but there is
 	// nothing to record yet. The main loop expects it to be closed, so
@@ -44,20 +64,20 @@ void D3D12HelloTriangle::OnInit()
 	// Create the raytracing pipeline, associating the shader code to symbol names
 	// and to their root signatures, and defining the amount of memory carried by
 	// rays (ray payload)
-	CreateRaytracingPipeline(); // #DXR
+	//CreateRaytracingPipeline(); // #DXR
 
 	// Allocate the buffer storing the raytracing output, with the same dimensions
 	// as the target image
-	CreateRaytracingOutputBuffer(); // #DXR
+	//CreateRaytracingOutputBuffer(); // #DXR
 
 	// Create the buffer containing the raytracing result (always output in a
 	// UAV), and create the heap referencing the resources used by the raytracing,
 	// such as the acceleration structure
-	CreateShaderResourceHeap(); // #DXR
+	//CreateShaderResourceHeap(); // #DXR
 
 	// Create the shader binding table and indicating which shaders
 	// are invoked for each instance in the  AS
-	CreateShaderBindingTable();
+	//CreateShaderBindingTable();
 }
 
 // Load the rendering pipeline dependencies.
@@ -219,12 +239,34 @@ void D3D12HelloTriangle::LoadAssets()
 {
 	// Create an empty root signature.
 	{
+		D3D12_DESCRIPTOR_RANGE rRange = {};
+		std::vector<D3D12_ROOT_PARAMETER> rRootParams;
+		if (nullptr != m_pCamera)
+		{
+			rRange.NumDescriptors = 1;
+			rRange.BaseShaderRegister = 0;
+			rRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+			rRange.RegisterSpace = 0;
+
+			D3D12_ROOT_PARAMETER rCameraParam;
+			rCameraParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			rCameraParam.DescriptorTable.NumDescriptorRanges = 1;
+			rCameraParam.DescriptorTable.pDescriptorRanges = &rRange;
+			rCameraParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rRootParams.push_back(rCameraParam);
+		}
+
 		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		
+		D3D12_ROOT_SIGNATURE_DESC rRootSignatureDesc = {};
+		rRootSignatureDesc.NumParameters = rRootParams.size();
+		rRootSignatureDesc.pParameters = rRootParams.data();
+		rRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
-		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+		ThrowIfFailed(D3D12SerializeRootSignature(&rRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 	}
 
@@ -239,8 +281,14 @@ void D3D12HelloTriangle::LoadAssets()
 #else
 		UINT compileFlags = 0;
 #endif
-
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+		ComPtr<ID3DBlob> errorMsg;
+	
+		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorMsg));
+		if (errorMsg)
+		{
+			OutputDebugStringA(reinterpret_cast<const char*>(errorMsg->GetBufferPointer()));
+			errorMsg->Release();
+		}
 		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
 
 		// Define the vertex input layout.
@@ -277,21 +325,26 @@ void D3D12HelloTriangle::LoadAssets()
 
 	// Create the vertex buffer.
 	{
-		// Define the geometry for a triangle.
+
 		Vertex triangleVertices[] =
 		{
-			{ { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-			{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-			{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+				{ { 0.0f, 1000.25f, 1000.5f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+			{ { 1000.25f, -1000.25f, 1000.5f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+			{ { -1000.25f, -1000.25f , 1000.5f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
 		};
-	
+		DirectX::XMVECTOR rTestV4 = { 0.0f, 1000.25f, 100.5f  ,1.f};
+		DirectX::XMMATRIX rTestMat = DirectX::XMMatrixIdentity();
+		m_pCamera->Update();
+		DirectX::XMVECTOR rTestResult = DirectX::XMVector4Transform(rTestV4, m_pCamera->m_rWorldToCamera);
+		DirectX::XMVECTOR rTestResult1 = DirectX::XMVector4Transform(rTestV4, m_pCamera->m_rWorldToView);
+		rTestResult1 /= rTestResult1.m128_f32[3];
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 
 		// Note: using upload heaps to transfer static data like vert buffers is not 
 		// recommended. Every time the GPU needs it, the upload heap will be marshalled 
 		// over. Please read up on Default Heap usage. An upload heap is used here for 
 		// code simplicity and because there are very few verts to actually transfer.
-		ThrowIfFailed(m_device->CreateCommittedResource(
+ 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
 			&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
@@ -311,9 +364,11 @@ void D3D12HelloTriangle::LoadAssets()
 		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
 		m_vertexBufferView.SizeInBytes = vertexBufferSize;
 
+
+
 		// #DXR - Per Instance
 		// Create a vertex buffer for a ground plane, similarly to the triangle definition above
-		CreatePlaneVB();
+		//CreatePlaneVB();
 	}
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -339,6 +394,8 @@ void D3D12HelloTriangle::LoadAssets()
 // Update frame-based values.
 void D3D12HelloTriangle::OnUpdate()
 {
+	//WaitForPreviousFrame();
+	UpdateCameraBuffer();
 }
 
 // Render the scene.
@@ -372,6 +429,36 @@ void D3D12HelloTriangle::OnKeyUp(UINT8 uKeyID)
 	{
 		m_bRaster = !m_bRaster;
 	}
+}
+void D3D12HelloTriangle::OnMouseDown(UINT32 lParam) {
+	m_mouse[0] = -(int)(short)((WORD)(((DWORD_PTR)(lParam)) & 0xffff));
+	m_mouse[1] = -(int)(short)((WORD)((((DWORD_PTR)(lParam)) >> 16) & 0xffff));
+}
+void D3D12HelloTriangle::OnMouseMove(UINT8 wParam, UINT32 lParam)
+{
+	bool blmb = wParam & MK_LBUTTON;
+	bool bmmb = wParam & MK_MBUTTON;
+	bool brmb = wParam & MK_RBUTTON;
+	if (!brmb && !bmmb && !blmb)
+		return; // no mouse button pressed
+
+	bool bctrl = GetAsyncKeyState(VK_CONTROL);
+	bool bshift = GetAsyncKeyState(VK_SHIFT);
+	bool balt = GetAsyncKeyState(VK_MENU);
+
+	int nX = -(int)(short)((WORD)(((DWORD_PTR)(lParam)) & 0xffff));
+	int nY = -(int)(short)((WORD)((((DWORD_PTR)(lParam)) >> 16) & 0xffff));
+	float dx = float(nX - m_mouse[0]) / float(m_width);
+	float dy = float(nY - m_mouse[1]) / float(m_height);
+	if (dx == 0 && dy == 0)
+		return;
+	if (brmb && !bctrl && !bshift && !balt)
+	{
+		m_pCamera->Rotation(Vector3(dx, dy, 0));
+		m_pCamera->Update();
+	}
+	m_mouse[0] = nX;
+	m_mouse[1] = nY;
 }
 
 void D3D12HelloTriangle::CheckRaytracingSupport()
@@ -557,9 +644,15 @@ void D3D12HelloTriangle::PopulateCommandList()
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-#if 0
-	
+	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr); 
+#ifdef DEBUG_RASTER
+
+	std::vector<ID3D12DescriptorHeap*> heaps = { m_constHeap.Get() };
+	m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()),
+		heaps.data());
+	// set the root descriptor table 0 to the constant buffer descriptor heap
+	m_commandList->SetGraphicsRootDescriptorTable(
+		0, m_constHeap->GetGPUDescriptorHandleForHeapStart());
 	// Record commands.
 	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
@@ -567,11 +660,28 @@ void D3D12HelloTriangle::PopulateCommandList()
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	m_commandList->DrawInstanced(3, 1, 0, 0);
 #endif
+#ifndef DEBUG_RASTER
 	// Record commands.
 	// For Raytracing
 	// #DXR
 	if (m_bRaster)
 	{
+		std::vector<ID3D12DescriptorHeap*> heaps = { m_constHeap.Get() };
+		m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()),
+			heaps.data());
+		// set the root descriptor table 0 to the constant buffer descriptor heap
+		m_commandList->SetGraphicsRootDescriptorTable(
+			0, m_constHeap->GetGPUDescriptorHandleForHeapStart());
+		// #DXR Extra - Refitting
+		D3D12_GPU_DESCRIPTOR_HANDLE handle =
+			m_constHeap->GetGPUDescriptorHandleForHeapStart();
+		// Access to the camera buffer, 1st parameter of the root signature
+		m_commandList->SetGraphicsRootDescriptorTable(0, handle);
+		// Instance index in the per-instance properties buffer, 3rd parameter of
+		// the root signature Here we set the value to 0, and since we have only 1
+		// constant, the offset is 0 as well
+	/*	m_commandList->SetGraphicsRoot32BitConstant(1, 0, 0);*/
+
 		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
@@ -580,8 +690,8 @@ void D3D12HelloTriangle::PopulateCommandList()
 
 		// #DXR Extra: Per-Instance Data
 		// In a way similar to triangle rendering, rasterize the plane
-		m_commandList->IASetVertexBuffers(0, 1, &m_planeBufferView);
-		m_commandList->DrawInstanced(6, 1, 0, 0);
+// 		m_commandList->IASetVertexBuffers(0, 1, &m_planeBufferView);
+// 		m_commandList->DrawInstanced(6, 1, 0, 0);
 	}
 	else
 	{
@@ -663,6 +773,8 @@ void D3D12HelloTriangle::PopulateCommandList()
 			D3D12_RESOURCE_STATE_RENDER_TARGET);
 		m_commandList->ResourceBarrier(1, &transition);
 	}
+#endif
+
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	
@@ -690,6 +802,35 @@ void D3D12HelloTriangle::WaitForPreviousFrame()
 	}
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+}
+
+void D3D12HelloTriangle::CreateInstanceBuffer()
+{
+	D3D12_RESOURCE_DESC rInstancePropertysDesc = {};
+	rInstancePropertysDesc.Alignment = 0;
+	rInstancePropertysDesc.DepthOrArraySize = 1;
+	rInstancePropertysDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	rInstancePropertysDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	rInstancePropertysDesc.Format = DXGI_FORMAT_UNKNOWN;
+	rInstancePropertysDesc.Height = 1;
+	rInstancePropertysDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	rInstancePropertysDesc.MipLevels = 1;
+	rInstancePropertysDesc.SampleDesc.Count = 1;
+	rInstancePropertysDesc.SampleDesc.Quality = 0;
+	rInstancePropertysDesc.Width = sizeof(InstanceProperty);
+
+	ThrowIfFailed(m_device->CreateCommittedResource(&kUploadHeapProps, D3D12_HEAP_FLAG_NONE, &rInstancePropertysDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_rInstancePropertysResource)));
+
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC  rDesc;
+	rDesc.Buffer.FirstElement = 0;
+	rDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	rDesc.Buffer.NumElements =/* m_rInstrancePropertyData.size()*/1;
+	rDesc.Buffer.StructureByteStride = sizeof(InstanceProperty);
+
+	m_rShaderResourceViewDesc.push_back(rDesc);
+
 }
 
 void D3D12HelloTriangle::CreateRaytracingOutputBuffer()
@@ -845,6 +986,79 @@ void D3D12HelloTriangle::CreatePlaneVB()
 	m_planeBufferView.BufferLocation = m_planeBuffer->GetGPUVirtualAddress();
 	m_planeBufferView.StrideInBytes = sizeof(Vertex);
 	m_planeBufferView.SizeInBytes = planeBufferSize;
+}
+
+void D3D12HelloTriangle::CreateCameraBuffer()
+{
+	D3D12_RESOURCE_DESC rCameraResDesc = {};
+	rCameraResDesc.Alignment = 0;
+	rCameraResDesc.DepthOrArraySize = 1;
+	rCameraResDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	rCameraResDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	rCameraResDesc.Format = DXGI_FORMAT_UNKNOWN;
+	rCameraResDesc.Height = 1;
+	rCameraResDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	rCameraResDesc.MipLevels = 1;
+	rCameraResDesc.SampleDesc.Count = 1;
+	rCameraResDesc.SampleDesc.Quality = 0;
+	rCameraResDesc.Width = m_pCamera->GetD3DResourceBytesSize();
+
+	ThrowIfFailed(m_device->CreateCommittedResource(&kUploadHeapProps, D3D12_HEAP_FLAG_NONE, &rCameraResDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_rCameraResource)));
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC rDesc;
+	rDesc.BufferLocation = m_rCameraResource->GetGPUVirtualAddress();
+	rDesc.SizeInBytes = m_pCamera->GetD3DResourceBytesSize();
+	m_rConstantBufferViewDesc.push_back(rDesc);
+
+
+// 	UpdateCameraBuffer();
+// 	WaitForPreviousFrame();
+}
+
+void D3D12HelloTriangle::UpdateCameraBuffer()
+{
+	if (nullptr != m_rCameraResource)
+	{
+		UINT8* pData;
+		ThrowIfFailed(m_rCameraResource->Map(0, nullptr, (void**)&pData));
+		ThrowIfFailed(m_device->GetDeviceRemovedReason());
+		memcpy(pData, m_pCamera->GetD3DResourceData(), m_pCamera->GetD3DResourceBytesSize());
+		m_rCameraResource->Unmap(0, nullptr);
+	}
+}
+
+void D3D12HelloTriangle::CreateConstDescHeap()
+{
+	int nDescCount = m_rConstantBufferViewDesc.size() + m_rShaderResourceViewDesc.size() + m_rUnorderAccessViewDesc.size();
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.NumDescriptors = nDescCount;
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_constHeap)));
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = m_constHeap->GetCPUDescriptorHandleForHeapStart();
+	for (int nLoopCount = 0; nLoopCount < m_rConstantBufferViewDesc.size(); ++nLoopCount)
+	{
+		m_device->CreateConstantBufferView(&m_rConstantBufferViewDesc[nLoopCount], handle);
+		handle.ptr += m_nSrvDescIncrementSize;
+	
+	}
+	for (int nLoopCount = 0; nLoopCount < m_rShaderResourceViewDesc.size(); ++nLoopCount)
+	{
+
+	}
+	for (int nLoopCount = 0; nLoopCount < m_rUnorderAccessViewDesc.size(); ++nLoopCount)
+	{
+
+	}
+}
+
+void D3D12HelloTriangle::ConstValueInit()
+{
+	m_nSrvDescIncrementSize = m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 ComPtr<ID3D12RootSignature> D3D12HelloTriangle::CreateRayGenSignature()
