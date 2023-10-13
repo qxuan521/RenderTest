@@ -10,36 +10,18 @@
 #include <wrl.h>
 #include <shellapi.h>
 
+#include "DeviceRes.h"
+
+
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
-const int FrameCount = 2;
 
-class D3D12RenderDevice : public IDevice
+class D3D12DeviceResFactory : public DeviceResFactory
 {
 public:
-	D3D12RenderDevice();
-	~D3D12RenderDevice();
-
-	virtual void InitRenderDevice()override;
-private:
-
-
-
-	ComPtr<IDXGISwapChain3> m_swapChain;
-	ComPtr<ID3D12Device> m_device;
-	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
-	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-	ComPtr<ID3D12CommandQueue> m_commandQueue;
-	ComPtr<ID3D12RootSignature> m_rootSignature;
-	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-	ComPtr<ID3D12PipelineState> m_pipelineState;
-	ComPtr<ID3D12GraphicsCommandList> m_commandList;
-
-
-	// Synchronization objects.
-	UINT m_frameIndex;
-	HANDLE m_fenceEvent;
-	ComPtr<ID3D12Fence> m_fence;
-	UINT64 m_fenceValue;
+	D3D12DeviceResFactory();
+	~D3D12DeviceResFactory();
+	//Create D3D12Resource 
+	virtual DeviceSwapChain* CreateSwapChain(IDevice*, SwapChainInfo* )override;
 };
