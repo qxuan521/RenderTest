@@ -38,3 +38,4 @@ public:
 private:
 	ComPtr<IDXGISwapChain3> m_pSwapChain;
 };
+//need heap manager
