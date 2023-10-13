@@ -10,5 +10,7 @@ struct SwapChainInfo
 	int FrameBufferCount = 0;
 	int Width;
 	int height;
+	int Hwnd;
 	TextureFormatRender Format;
+
 };

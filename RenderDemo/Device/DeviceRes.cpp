@@ -1,11 +1,11 @@
 #include "D3D12DeviceRes.h"
 #include "DeviceRes.h"
+#include "Renderer/DefineRender.h"
 
 
+DeviceResourceFactory* DeviceResourceFactory::m_pInstancePtr = nullptr;
 
-DeviceResFactory* DeviceResFactory::m_pInstancePtr = nullptr;
-
-DeviceResFactory* DeviceResFactory::GetInstancePtr()
+DeviceResourceFactory* DeviceResourceFactory::GetInstancePtr()
 {
     if (nullptr == m_pInstancePtr)
     {
@@ -13,3 +13,29 @@ DeviceResFactory* DeviceResFactory::GetInstancePtr()
     }
     return m_pInstancePtr;
 }
+
+//resource interface 
+
+
+DeviceSwapChain* IDeviceRes::CastToSwapChain()
+{
+	return nullptr;
+}
+
+
+
+//resource 
+DeviceSwapChain::DeviceSwapChain()
+{
+
+}
+DeviceSwapChain::~DeviceSwapChain()
+{
+
+}
+
+DeviceSwapChain* DeviceSwapChain::CastToSwapChain()
+{
+    return this;
+}
+

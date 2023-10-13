@@ -8,4 +8,5 @@ ViewPortRender::ViewPortRender()
 
 ViewPortRender::~ViewPortRender()
 {
+
 }

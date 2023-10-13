@@ -22,12 +22,20 @@ public:
 	~D3D12RenderDevice();
 
 	virtual void InitRenderDevice()override;
+
+	virtual D3D12RenderDevice* CasttoD3DDevice()override;
+
+	ComPtr<IDXGISwapChain3> CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& SwapChainDesc,int Hwnd);
+
+	ComPtr<ID3D12Device>& GetDevice();
+	ComPtr<IDXGIFactory4>& GetDXFactory();
 private:
 
 
-
+	ComPtr<ID3D12Device>	m_pDevice;
+	ComPtr<IDXGIFactory4>	m_pFactory;
 	ComPtr<IDXGISwapChain3> m_swapChain;
-	ComPtr<ID3D12Device> m_device;
+
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;

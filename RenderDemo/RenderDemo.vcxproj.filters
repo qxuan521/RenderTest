@@ -60,6 +60,21 @@
     <ClInclude Include="CommunicationData\FrameData.h">
       <Filter>Code\CommunicationData</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\ViewPortRender.h">
+      <Filter>Code\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\ResourceRender.h">
+      <Filter>Code\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Device\DeviceRes.h">
+      <Filter>Code\Device</Filter>
+    </ClInclude>
+    <ClInclude Include="Device\D3D12DeviceRes.h">
+      <Filter>Code\Device</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\DefineRender.h">
+      <Filter>Code\Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RenderDemo.cpp">
@@ -82,6 +97,21 @@
     </ClCompile>
     <ClCompile Include="CommunicationData\FrameData.cpp">
       <Filter>Code\CommunicationData</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\ViewPortRender.cpp">
+      <Filter>Code\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\ResourceRender.cpp">
+      <Filter>Code\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Device\DeviceRes.cpp">
+      <Filter>Code\Device</Filter>
+    </ClCompile>
+    <ClCompile Include="Device\D3D12DeviceRes.cpp">
+      <Filter>Code\Device</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\DefineRender.cpp">
+      <Filter>Code\Renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

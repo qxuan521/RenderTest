@@ -31,7 +31,7 @@ void D3D12RenderDevice::InitRenderDevice()
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory));
+	CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_pFactory));
 
 
 	ComPtr<IDXGIAdapter1> hardwareAdapter;
@@ -63,7 +63,7 @@ void D3D12RenderDevice::InitRenderDevice()
 			D3D12CreateDevice(
 				hardwareAdapter.Get(),
 				D3D_FEATURE_LEVEL_11_0,
-				IID_PPV_ARGS(&m_device)
+				IID_PPV_ARGS(&m_pDevice)
 			);
 
 		}
@@ -73,5 +73,43 @@ void D3D12RenderDevice::InitRenderDevice()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	m_pDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue));
+
+
+
+
+}
+
+D3D12RenderDevice* D3D12RenderDevice::CasttoD3DDevice()
+{
+	return this;
+}
+
+ComPtr<IDXGISwapChain3> D3D12RenderDevice::CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& SwapChainDesc, int Hwnd)
+{
+	ComPtr<IDXGISwapChain1> SwapChain1;
+	if (m_pFactory->CreateSwapChainForHwnd(
+		m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
+		HWND(Hwnd),
+		&SwapChainDesc,
+		nullptr,
+		nullptr,
+		&SwapChain1
+	) < 0)
+	{
+		return ComPtr<IDXGISwapChain3>(nullptr);
+	}
+	ComPtr<IDXGISwapChain3> SwapChain;
+	SwapChain1.As(&SwapChain);
+	return SwapChain;
+}
+
+ComPtr<ID3D12Device>& D3D12RenderDevice::GetDevice()
+{
+	return m_pDevice;
+}
+
+ComPtr<IDXGIFactory4>& D3D12RenderDevice::GetDXFactory()
+{
+	return m_pFactory;
 }

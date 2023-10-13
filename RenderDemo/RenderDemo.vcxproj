@@ -132,23 +132,33 @@
   <ItemGroup>
     <ClInclude Include="CommunicationData\FrameData.h" />
     <ClInclude Include="Device\D3D12Device.h" />
+    <ClInclude Include="Device\D3D12DeviceRes.h" />
     <ClInclude Include="Device\Device.h" />
+    <ClInclude Include="Device\DeviceRes.h" />
     <ClInclude Include="Engine\EngineCore.h" />
     <ClInclude Include="Engine\FrameDataOperator.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="RenderDemo.h" />
+    <ClInclude Include="Renderer\DefineRender.h" />
     <ClInclude Include="Renderer\FrameRender.h" />
+    <ClInclude Include="Renderer\ResourceRender.h" />
+    <ClInclude Include="Renderer\ViewPortRender.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CommunicationData\FrameData.cpp" />
     <ClCompile Include="Device\D3D12Device.cpp" />
+    <ClCompile Include="Device\D3D12DeviceRes.cpp" />
     <ClCompile Include="Device\Device.cpp" />
+    <ClCompile Include="Device\DeviceRes.cpp" />
     <ClCompile Include="Engine\EngineCore.cpp" />
     <ClCompile Include="Engine\FrameDataOperator.cpp" />
     <ClCompile Include="RenderDemo.cpp" />
+    <ClCompile Include="Renderer\DefineRender.cpp" />
     <ClCompile Include="Renderer\FrameRender.cpp" />
+    <ClCompile Include="Renderer\ResourceRender.cpp" />
+    <ClCompile Include="Renderer\ViewPortRender.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="RenderDemo.rc" />
