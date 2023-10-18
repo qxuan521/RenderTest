@@ -28,6 +28,9 @@
     <Filter Include="Code\CommunicationData">
       <UniqueIdentifier>{55a0c897-7721-41a8-a5d1-031c1c9b167e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Code\Device\DX12">
+      <UniqueIdentifier>{b7bb8ba9-ef3e-48f1-840e-5a9706aca045}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -41,9 +44,6 @@
     </ClInclude>
     <ClInclude Include="RenderDemo.h">
       <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Device\D3D12Device.h">
-      <Filter>Code\Device</Filter>
     </ClInclude>
     <ClInclude Include="Renderer\FrameRender.h">
       <Filter>Code\Renderer</Filter>
@@ -69,19 +69,19 @@
     <ClInclude Include="Device\DeviceRes.h">
       <Filter>Code\Device</Filter>
     </ClInclude>
-    <ClInclude Include="Device\D3D12DeviceRes.h">
-      <Filter>Code\Device</Filter>
-    </ClInclude>
     <ClInclude Include="Renderer\DefineRender.h">
       <Filter>Code\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Device\D3D12Device.h">
+      <Filter>Code\Device\DX12</Filter>
+    </ClInclude>
+    <ClInclude Include="Device\D3D12DeviceRes.h">
+      <Filter>Code\Device\DX12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RenderDemo.cpp">
       <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Device\D3D12Device.cpp">
-      <Filter>Code\Device</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\FrameRender.cpp">
       <Filter>Code\Renderer</Filter>
@@ -107,11 +107,14 @@
     <ClCompile Include="Device\DeviceRes.cpp">
       <Filter>Code\Device</Filter>
     </ClCompile>
-    <ClCompile Include="Device\D3D12DeviceRes.cpp">
-      <Filter>Code\Device</Filter>
-    </ClCompile>
     <ClCompile Include="Renderer\DefineRender.cpp">
       <Filter>Code\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Device\D3D12Device.cpp">
+      <Filter>Code\Device\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Device\D3D12DeviceRes.cpp">
+      <Filter>Code\Device\DX12</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

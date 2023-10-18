@@ -73,7 +73,7 @@ void D3D12RenderDevice::InitRenderDevice()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	m_pDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue));
+	m_pDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_pCommandQueue));
 
 
 
@@ -89,7 +89,7 @@ ComPtr<IDXGISwapChain3> D3D12RenderDevice::CreateSwapChain(DXGI_SWAP_CHAIN_DESC1
 {
 	ComPtr<IDXGISwapChain1> SwapChain1;
 	if (m_pFactory->CreateSwapChainForHwnd(
-		m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
+		m_pCommandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
 		HWND(Hwnd),
 		&SwapChainDesc,
 		nullptr,

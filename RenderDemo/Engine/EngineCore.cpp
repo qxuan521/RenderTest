@@ -26,6 +26,7 @@ void EngineLogical::Initialize()
 void EngineLogical::SetCurrentWnd(int HWnd)
 {
 	m_nCurrentHWnd = HWnd;
+
 }
 
 void EngineLogical::InitView()
@@ -37,7 +38,18 @@ void EngineLogical::InitView()
 
 void EngineLogical::FrameLoop(float DeltaTime)
 {
+	std::shared_ptr<FrameData> rCurrentFrameData = GetCurrentBackFrameData();
 
+	m_pFrameRenderer->PreRender();
+	m_pFrameRenderer->Render();
+	m_pFrameRenderer->PostRender();
+
+	m_nCurrentFrameDataIndex = (m_nCurrentFrameDataIndex + 1) % m_rFrameDataArray.size();
+}
+
+std::shared_ptr<FrameData> EngineLogical::GetCurrentBackFrameData()
+{
+	return m_rFrameDataArray[(m_nCurrentFrameDataIndex + 1) % m_rFrameDataArray.size() ];
 }
 
 void EngineLogical::Destroy()

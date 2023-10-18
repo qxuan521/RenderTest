@@ -18,6 +18,7 @@ void FrameRenderer::PostRender()
 void FrameRenderer::InitializeDevice()
 {
 	m_pDevice = IDevice::CreateDevice();
+	m_pDevice->InitRenderDevice();
 }
 
 FrameRenderer& FrameRenderer::Instance()

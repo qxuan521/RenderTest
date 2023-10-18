@@ -21,7 +21,7 @@ public:
 	void InitView();
 
 	void FrameLoop(float DeltaTime);
-
+	std::shared_ptr<FrameData> GetCurrentBackFrameData();
 	void Destroy();
 private:
 	std::vector< std::shared_ptr<FrameData>> m_rFrameDataArray;
