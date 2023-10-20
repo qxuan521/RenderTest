@@ -149,12 +149,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_PAINT:
         {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: 在此处添加使用 hdc 的任何绘图代码...
-            EndPaint(hWnd, &ps);
-
-            gEngineCore.FrameLoop(0.016f);
+//             PAINTSTRUCT ps;
+//             HDC hdc = BeginPaint(hWnd, &ps);
+//             // TODO: 在此处添加使用 hdc 的任何绘图代码...
+//             EndPaint(hWnd, &ps);
+		    gEngineCore.FrameLoop(0.016f);
         }
         break;
     case WM_DESTROY:

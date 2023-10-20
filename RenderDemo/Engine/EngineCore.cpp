@@ -19,7 +19,7 @@ void EngineLogical::Initialize()
 	m_pFrameRenderer.reset(FrameRenderer::InstancePtr());
 	m_rFrameDataArray.push_back(std::make_shared<FrameData>());
 	m_rFrameDataArray.push_back(std::make_shared<FrameData>());
-
+	m_pFrameRenderer->InitializeDevice();
 
 }
 

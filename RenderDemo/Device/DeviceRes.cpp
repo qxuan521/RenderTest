@@ -22,6 +22,16 @@ DeviceSwapChain* IDeviceRes::CastToSwapChain()
 	return nullptr;
 }
 
+DeviceRenderTarget* IDeviceRes::CastToRenderTargetRes()
+{
+    return nullptr;
+}
+
+DeviceVertexBuffer* IDeviceRes::CastToVertexBuffer()
+{
+    return nullptr;
+}
+
 
 
 //resource 
@@ -39,3 +49,14 @@ DeviceSwapChain* DeviceSwapChain::CastToSwapChain()
     return this;
 }
 
+
+
+DeviceRenderTarget* DeviceRenderTarget::CastToRenderTargetRes()
+{
+    return this;
+}
+
+DeviceVertexBuffer* DeviceVertexBuffer::CastToVertexBuffer()
+{
+    return this;
+}

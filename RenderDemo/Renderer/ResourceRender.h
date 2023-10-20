@@ -5,6 +5,9 @@
 class IDeviceRes;
 class DeviceSwapChain;
 struct SwapChainInfo;
+class DeviceRenderTarget;
+class DeviceVertexBuffer;
+struct RenderTargetInfo;
 
 
 class IRSRenderResource
@@ -34,8 +37,7 @@ class RSRenderTarget
 public:
 	RSRenderTarget();
 	~RSRenderTarget();
-
-
-
+private:
+	DeviceRenderTarget* m_pRenderTarget;
 
 };
